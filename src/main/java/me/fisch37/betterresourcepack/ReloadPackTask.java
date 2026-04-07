@@ -1,5 +1,7 @@
 package me.fisch37.betterresourcepack;
 
+import net.kyori.adventure.resource.ResourcePackInfo;
+import net.kyori.adventure.resource.ResourcePackRequest;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
@@ -7,7 +9,9 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.HexFormat;
+import java.util.UUID;
 
 import static me.fisch37.betterresourcepack.Utils.sendMessage;
 
@@ -99,13 +103,37 @@ public class ReloadPackTask extends BukkitRunnable {
         }
     }
 
+    public static final UUID PACK_UUID = UUID.randomUUID();
+
+    public static String hex(byte[] bytes) {
+        final StringBuilder hexString = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            hexString.append(String.format("%02x", b)); // lowercase hex
+        }
+        return hexString.toString();
+    }
+
     private void pushPackToPlayers(){
         sendToAuthor("Pushing update to all players");
-        for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
-            player.setResourcePack(
-                    this.packInfo.getUrl().toString(),
-                    this.packInfo.getSha1()
-            );
+
+        try {
+            final ResourcePackInfo pack = ResourcePackInfo.resourcePackInfo()
+                .uri(this.packInfo.getUrl().toURI())
+                .hash(hex(this.packInfo.getSha1()))
+                .id(PACK_UUID)
+                .build();
+
+            final ResourcePackRequest request = ResourcePackRequest.resourcePackRequest()
+                    .packs(pack)
+                    .required(false)
+                    .replace(false)
+                    .build();
+
+            for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
+                player.sendResourcePacks(request);
+            }
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
         }
     }
 
